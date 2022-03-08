@@ -107,8 +107,7 @@ class BRIE(InfoExtractor):
                 'webpage_url': xpath_text(xml_media, 'permalink'),
                 'uploader': xpath_text(xml_media, 'author'),
             }
-            broadcast_date = xpath_text(xml_media, 'broadcastDate')
-            if broadcast_date:
+            if broadcast_date := xpath_text(xml_media, 'broadcastDate'):
                 media['upload_date'] = ''.join(reversed(broadcast_date.split('.')))
             medias.append(media)
 
@@ -126,8 +125,15 @@ class BRIE(InfoExtractor):
             format_url = xpath_text(asset, ['downloadUrl', 'url'])
             asset_type = asset.get('type')
             if asset_type.startswith('HDS'):
-                formats.extend(self._extract_f4m_formats(
-                    format_url + '?hdcore=3.2.0', media_id, f4m_id='hds', fatal=False))
+                formats.extend(
+                    self._extract_f4m_formats(
+                        f'{format_url}?hdcore=3.2.0',
+                        media_id,
+                        f4m_id='hds',
+                        fatal=False,
+                    )
+                )
+
             elif asset_type.startswith('HLS'):
                 formats.extend(self._extract_m3u8_formats(
                     format_url, media_id, 'mp4', 'm3u8_native', m3u8_id='hds', fatal=False))
@@ -143,16 +149,14 @@ class BRIE(InfoExtractor):
                     'container': xpath_text(asset, 'mediaType'),
                     'filesize': int_or_none(xpath_text(asset, 'size')),
                 }
-                format_url = self._proto_relative_url(format_url)
-                if format_url:
+                if format_url := self._proto_relative_url(format_url):
                     http_format_info = format_info.copy()
                     http_format_info.update({
                         'url': format_url,
                         'format_id': 'http-%s' % asset_type,
                     })
                     formats.append(http_format_info)
-                server_prefix = xpath_text(asset, 'serverPrefix')
-                if server_prefix:
+                if server_prefix := xpath_text(asset, 'serverPrefix'):
                     rtmp_format_info = format_info.copy()
                     rtmp_format_info.update({
                         'url': server_prefix,

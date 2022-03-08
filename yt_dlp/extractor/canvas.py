@@ -316,12 +316,14 @@ class VrtNUIE(GigyaBaseIE):
                     }, data=urlencode_postdata(post_data))
 
             except ExtractorError as e:
-                if isinstance(e.cause, compat_HTTPError) and e.cause.code == 401:
-                    login_attempt += 1
-                    self.report_warning('Authentication failed')
-                    self._sleep(1, None, msg_template='Waiting for %(timeout)s seconds before trying again')
-                else:
+                if (
+                    not isinstance(e.cause, compat_HTTPError)
+                    or e.cause.code != 401
+                ):
                     raise e
+                login_attempt += 1
+                self.report_warning('Authentication failed')
+                self._sleep(1, None, msg_template='Waiting for %(timeout)s seconds before trying again')
             else:
                 break
 
@@ -333,9 +335,8 @@ class VrtNUIE(GigyaBaseIE):
         attrs = extract_attributes(self._search_regex(
             r'(<nui-media[^>]+>)', webpage, 'media element'))
         video_id = attrs['videoid']
-        publication_id = attrs.get('publicationid')
-        if publication_id:
-            video_id = publication_id + '$' + video_id
+        if publication_id := attrs.get('publicationid'):
+            video_id = f'{publication_id}${video_id}'
 
         page = (self._parse_json(self._search_regex(
             r'digitalData\s*=\s*({.+?});', webpage, 'digial data',

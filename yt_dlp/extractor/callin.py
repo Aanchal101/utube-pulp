@@ -101,14 +101,18 @@ class CallinIE(InfoExtractor):
             'uploader_url': traverse_obj(show_json, ('pageProps', 'show', 'url')),
             'channel': show,
             'channel_id': show_id,
-            'channel_url': traverse_obj(episode, ('show', 'linkObj', 'resourceUrl')),
+            'channel_url': traverse_obj(
+                episode, ('show', 'linkObj', 'resourceUrl')
+            ),
             'duration': float_or_none(episode.get('runtime')),
             'view_count': int_or_none(episode.get('plays')),
-            'categories': traverse_obj(episode, ('show', 'categorizations', ..., 'name')),
-            'cast': cast if cast else None,
+            'categories': traverse_obj(
+                episode, ('show', 'categorizations', ..., 'name')
+            ),
+            'cast': cast or None,
             'series': show,
             'series_id': show_id,
             'episode': title,
             'episode_number': episode_number,
-            'episode_id': id
+            'episode_id': id,
         }

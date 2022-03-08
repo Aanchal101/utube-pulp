@@ -86,10 +86,13 @@ class AnimeOnDemandIE(InfoExtractor):
             })
 
         if all(p not in response for p in ('>Logout<', 'href="/users/sign_out"')):
-            error = self._search_regex(
+            if error := self._search_regex(
                 r'<p[^>]+\bclass=(["\'])(?:(?!\1).)*\balert\b(?:(?!\1).)*\1[^>]*>(?P<error>.+?)</p>',
-                response, 'error', default=None, group='error')
-            if error:
+                response,
+                'error',
+                default=None,
+                group='error',
+            ):
                 raise ExtractorError('Unable to login: %s' % error, expected=True)
             raise ExtractorError('Unable to log in')
 
@@ -158,12 +161,11 @@ class AnimeOnDemandIE(InfoExtractor):
                         }, fatal=False)
                     if not playlist:
                         continue
-                    stream_url = url_or_none(playlist.get('streamurl'))
-                    if stream_url:
-                        rtmp = re.search(
+                    if stream_url := url_or_none(playlist.get('streamurl')):
+                        if rtmp := re.search(
                             r'^(?P<url>rtmpe?://(?P<host>[^/]+)/(?P<app>.+/))(?P<playpath>mp[34]:.+)',
-                            stream_url)
-                        if rtmp:
+                            stream_url,
+                        ):
                             formats.append({
                                 'url': rtmp.group('url'),
                                 'app': rtmp.group('app'),
@@ -199,8 +201,6 @@ class AnimeOnDemandIE(InfoExtractor):
                                 entry_protocol='m3u8_native', m3u8_id=format_id, fatal=False)
                         elif source.get('type') == 'video/dash' or ext == 'mpd':
                             continue
-                            file_formats = self._extract_mpd_formats(
-                                file_, video_id, mpd_id=format_id, fatal=False)
                         else:
                             continue
                         for f in file_formats:
@@ -227,10 +227,10 @@ class AnimeOnDemandIE(InfoExtractor):
 
             # Extract teaser/trailer only when full episode is not available
             if not info['formats']:
-                m = re.search(
+                if m := re.search(
                     r'data-dialog-header=(["\'])(?P<title>.+?)\1[^>]+href=(["\'])(?P<href>.+?)\3[^>]*>(?P<kind>Teaser|Trailer)<',
-                    html)
-                if m:
+                    html,
+                ):
                     f = common_info.copy()
                     f.update({
                         'id': '%s-%s' % (f['id'], m.group('kind').lower()),
@@ -265,8 +265,7 @@ class AnimeOnDemandIE(InfoExtractor):
                     'episode_number': episode_number,
                 }
 
-                for e in extract_entries(episode_html, video_id, common_info):
-                    yield e
+                yield from extract_entries(episode_html, video_id, common_info)
 
         def extract_film(html, video_id):
             common_info = {
@@ -274,8 +273,7 @@ class AnimeOnDemandIE(InfoExtractor):
                 'title': anime_title,
                 'description': anime_description,
             }
-            for e in extract_entries(html, video_id, common_info):
-                yield e
+            yield from extract_entries(html, video_id, common_info)
 
         def entries():
             has_episodes = False
@@ -284,8 +282,7 @@ class AnimeOnDemandIE(InfoExtractor):
                 yield e
 
             if not has_episodes:
-                for e in extract_film(webpage, anime_id):
-                    yield e
+                yield from extract_film(webpage, anime_id)
 
         return self.playlist_result(
             entries(), anime_id, anime_title, anime_description)

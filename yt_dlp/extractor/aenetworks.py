@@ -170,7 +170,7 @@ class AENetworksIE(AENetworksBaseIE):
 
     def _real_extract(self, url):
         domain, canonical = self._match_valid_url(url).groups()
-        return self._extract_aetn_info(domain, 'canonical', '/' + canonical, url)
+        return self._extract_aetn_info(domain, 'canonical', f'/{canonical}', url)
 
 
 class AENetworksListBaseIE(AENetworksBaseIE):
@@ -298,8 +298,8 @@ class HistoryTopicIE(AENetworksBaseIE):
     def _real_extract(self, url):
         display_id = self._match_id(url)
         return self.url_result(
-            'http://www.history.com/videos/' + display_id,
-            AENetworksIE.ie_key())
+            f'http://www.history.com/videos/{display_id}', AENetworksIE.ie_key()
+        )
 
 
 class HistoryPlayerIE(AENetworksBaseIE):

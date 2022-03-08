@@ -56,9 +56,7 @@ def parseOpts(overrideArguments=None, ignore_config_files='if_override'):
         if userConf is not None:
             return userConf, userConfFile
 
-        # appdata
-        appdata_dir = compat_getenv('appdata')
-        if appdata_dir:
+        if appdata_dir := compat_getenv('appdata'):
             userConfFile = os.path.join(appdata_dir, package_name, 'config')
             userConf = Config.read_file(userConfFile, default=None)
             if userConf is None:
@@ -125,7 +123,7 @@ class _YoutubeDLOptionParser(optparse.OptionParser):
         try:
             return super()._match_long_opt(opt)
         except optparse.AmbiguousOptionError as e:
-            if len(set(self._long_opt[p] for p in e.possibilities)) == 1:
+            if len({self._long_opt[p] for p in e.possibilities}) == 1:
                 return e.possibilities[0]
             raise
 

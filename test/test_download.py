@@ -157,8 +157,8 @@ def generator(test_case, tname):
             for tc in tcs:
                 tc_filename = get_tc_filename(tc)
                 try_rm(tc_filename)
-                try_rm(tc_filename + '.part')
-                try_rm(os.path.splitext(tc_filename)[0] + '.info.json')
+                try_rm(f'{tc_filename}.part')
+                try_rm(f'{os.path.splitext(tc_filename)[0]}.info.json')
         try_rm_tcs_files()
         try:
             try_num = 1

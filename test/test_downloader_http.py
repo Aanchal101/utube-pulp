@@ -30,8 +30,7 @@ class HTTPTestRequestHandler(compat_http_server.BaseHTTPRequestHandler):
         range_header = self.headers.get('Range')
         start = end = None
         if range_header:
-            mobj = re.search(r'^bytes=(\d+)-(\d+)', range_header)
-            if mobj:
+            if mobj := re.search(r'^bytes=(\d+)-(\d+)', range_header):
                 start = int(mobj.group(1))
                 end = int(mobj.group(2))
         valid_range = start is not None and end is not None

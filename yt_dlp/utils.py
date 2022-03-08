@@ -291,10 +291,11 @@ def write_json_file(obj, fn):
 
     args = {
         'suffix': '.tmp',
-        'prefix': path_basename(fn) + '.',
+        'prefix': f'{path_basename(fn)}.',
         'dir': path_dirname(fn),
         'delete': False,
     }
+
 
     # In Python 2.x, json.dump expects a bytestream.
     # In Python 3.x, it writes to a character stream
@@ -678,19 +679,15 @@ def sanitize_open(filename, open_mode):
         alt_filename = sanitize_path(filename)
         if alt_filename == filename:
             raise
-        else:
-            # An exception here should be caught in the caller
-            stream = locked_file(filename, open_mode, block=False).open()
-            return (stream, alt_filename)
+        # An exception here should be caught in the caller
+        stream = locked_file(filename, open_mode, block=False).open()
+        return (stream, alt_filename)
 
 
 def timeconvert(timestr):
     """Convert RFC 2822 defined time string into system timestamp"""
-    timestamp = None
     timetuple = email.utils.parsedate_tz(timestr)
-    if timetuple is not None:
-        timestamp = email.utils.mktime_tz(timetuple)
-    return timestamp
+    return email.utils.mktime_tz(timetuple) if timetuple is not None else None
 
 
 def sanitize_filename(s, restricted=False, is_id=False):
@@ -1029,7 +1026,7 @@ def bug_reports_message(before=';'):
     if not before or before.endswith(('.', '!', '?')):
         msg = msg[0].title() + msg[1:]
 
-    return (before + ' ' if before else '') + msg
+    return (f'{before} ' if before else '') + msg
 
 
 class YoutubeDLError(Exception):
@@ -1307,7 +1304,12 @@ def handle_youtubedl_headers(headers):
     filtered_headers = headers
 
     if 'Youtubedl-no-compression' in filtered_headers:
-        filtered_headers = dict((k, v) for k, v in filtered_headers.items() if k.lower() != 'accept-encoding')
+        filtered_headers = {
+            k: v
+            for k, v in filtered_headers.items()
+            if k.lower() != 'accept-encoding'
+        }
+
         del filtered_headers['Youtubedl-no-compression']
 
     return filtered_headers
@@ -1338,8 +1340,7 @@ class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
     def http_open(self, req):
         conn_class = compat_http_client.HTTPConnection
 
-        socks_proxy = req.headers.get('Ytdl-socks-proxy')
-        if socks_proxy:
+        if socks_proxy := req.headers.get('Ytdl-socks-proxy'):
             conn_class = make_socks_conn_class(conn_class, socks_proxy)
             del req.headers['Ytdl-socks-proxy']
 
@@ -1419,8 +1420,7 @@ class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
         # Percent-encode redirect URL of Location HTTP header to satisfy RFC 3986 (see
         # https://github.com/ytdl-org/youtube-dl/issues/6457).
         if 300 <= resp.code < 400:
-            location = resp.headers.get('Location')
-            if location:
+            if location := resp.headers.get('Location'):
                 # As of RFC 2616 default charset is iso-8859-1 that is respected by python 3
                 if sys.version_info >= (3, 0):
                     location = location.encode('iso-8859-1').decode('utf-8')
@@ -1451,9 +1451,7 @@ def make_socks_conn_class(base_class, socks_proxy):
         socks_type = ProxyType.SOCKS4A
 
     def unquote_if_non_empty(s):
-        if not s:
-            return s
-        return compat_urllib_parse_unquote_plus(s)
+        return s if not s else compat_urllib_parse_unquote_plus(s)
 
     proxy_args = (
         socks_type,
@@ -1496,8 +1494,7 @@ class YoutubeDLHTTPSHandler(compat_urllib_request.HTTPSHandler):
         if hasattr(self, '_check_hostname'):  # python 3.x
             kwargs['check_hostname'] = self._check_hostname
 
-        socks_proxy = req.headers.get('Ytdl-socks-proxy')
-        if socks_proxy:
+        if socks_proxy := req.headers.get('Ytdl-socks-proxy'):
             conn_class = make_socks_conn_class(conn_class, socks_proxy)
             del req.headers['Ytdl-socks-proxy']
 
@@ -1549,18 +1546,9 @@ class YoutubeDLCookieJar(compat_cookiejar.MozillaCookieJar):
                     continue
                 if not ignore_expires and cookie.is_expired(now):
                     continue
-                if cookie.secure:
-                    secure = 'TRUE'
-                else:
-                    secure = 'FALSE'
-                if cookie.domain.startswith('.'):
-                    initial_dot = 'TRUE'
-                else:
-                    initial_dot = 'FALSE'
-                if cookie.expires is not None:
-                    expires = compat_str(cookie.expires)
-                else:
-                    expires = ''
+                secure = 'TRUE' if cookie.secure else 'FALSE'
+                initial_dot = 'TRUE' if cookie.domain.startswith('.') else 'FALSE'
+                expires = compat_str(cookie.expires) if cookie.expires is not None else ''
                 if cookie.value is None:
                     # cookies.txt regards 'Set-Cookie: foo' as a cookie
                     # with no name, whereas http.cookiejar regards it as a
@@ -1676,8 +1664,9 @@ class YoutubeDLRedirectHandler(compat_urllib_request.HTTPRedirectHandler):
         but another Handler might.
         """
         m = req.get_method()
-        if (not (code in (301, 302, 303, 307, 308) and m in ("GET", "HEAD")
-                 or code in (301, 302, 303) and m == "POST")):
+        if (
+            code not in (301, 302, 303, 307, 308) or m not in ("GET", "HEAD")
+        ) and (code not in (301, 302, 303) or m != "POST"):
             raise compat_HTTPError(req.full_url, code, msg, headers, fp)
         # Strictly (according to RFC 2616), 301 or 302 in response to
         # a POST MUST NOT cause a redirection without confirmation
@@ -1698,15 +1687,15 @@ class YoutubeDLRedirectHandler(compat_urllib_request.HTTPRedirectHandler):
 
         CONTENT_HEADERS = ("content-length", "content-type")
         # NB: don't use dict comprehension for python 2.6 compatibility
-        newheaders = dict((k, v) for k, v in req.headers.items()
-                          if k.lower() not in CONTENT_HEADERS)
+        newheaders = {k: v for k, v in req.headers.items()
+                              if k.lower() not in CONTENT_HEADERS}
         return compat_urllib_request.Request(
             newurl, headers=newheaders, origin_req_host=req.origin_req_host,
             unverifiable=True)
 
 
 def extract_timezone(date_str):
-    m = re.search(
+    if m := re.search(
         r'''(?x)
             ^.{8,}?                                              # >=8 char non-TZ prefix, if present
             (?P<tz>Z|                                            # just the UTC Z, or
@@ -1716,18 +1705,19 @@ def extract_timezone(date_str):
                 (?P<sign>\+|-)                                   # +/-
                 (?P<hours>[0-9]{2}):?(?P<minutes>[0-9]{2})       # hh[:]mm
             $)
-        ''', date_str)
-    if not m:
-        timezone = datetime.timedelta()
-    else:
+        ''',
+        date_str,
+    ):
         date_str = date_str[:-len(m.group('tz'))]
-        if not m.group('sign'):
-            timezone = datetime.timedelta()
-        else:
+        if m.group('sign'):
             sign = 1 if m.group('sign') == '+' else -1
             timezone = datetime.timedelta(
                 hours=sign * int(m.group('hours')),
                 minutes=sign * int(m.group('minutes')))
+        else:
+            timezone = datetime.timedelta()
+    else:
+        timezone = datetime.timedelta()
     return timezone, date_str
 
 
@@ -1772,8 +1762,7 @@ def unified_strdate(date_str, day_first=True):
         except ValueError:
             pass
     if upload_date is None:
-        timetuple = email.utils.parsedate_tz(date_str)
-        if timetuple:
+        if timetuple := email.utils.parsedate_tz(date_str):
             try:
                 upload_date = datetime.datetime(*timetuple[:6]).strftime('%Y%m%d')
             except ValueError:
@@ -1794,14 +1783,15 @@ def unified_timestamp(date_str, day_first=True):
     # Remove AM/PM + timezone
     date_str = re.sub(r'(?i)\s*(?:AM|PM)(?:\s+[A-Z]+)?', '', date_str)
 
-    # Remove unrecognized timezones from ISO 8601 alike timestamps
-    m = re.search(r'\d{1,2}:\d{1,2}(?:\.\d+)?(?P<tz>\s*[A-Z]+)$', date_str)
-    if m:
+    if m := re.search(
+        r'\d{1,2}:\d{1,2}(?:\.\d+)?(?P<tz>\s*[A-Z]+)$', date_str
+    ):
         date_str = date_str[:-len(m.group('tz'))]
 
-    # Python only supports microseconds, so remove nanoseconds
-    m = re.search(r'^([0-9]{4,}-[0-9]{1,2}-[0-9]{1,2}T[0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}\.[0-9]{6})[0-9]+$', date_str)
-    if m:
+    if m := re.search(
+        r'^([0-9]{4,}-[0-9]{1,2}-[0-9]{1,2}T[0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}\.[0-9]{6})[0-9]+$',
+        date_str,
+    ):
         date_str = m.group(1)
 
     for expression in date_formats(day_first):
@@ -1810,8 +1800,7 @@ def unified_timestamp(date_str, day_first=True):
             return calendar.timegm(dt.timetuple())
         except ValueError:
             pass
-    timetuple = email.utils.parsedate_tz(date_str)
-    if timetuple:
+    if timetuple := email.utils.parsedate_tz(date_str):
         return calendar.timegm(timetuple) + pm_delta * 3600
 
 
@@ -1829,7 +1818,9 @@ def determine_ext(url, default_ext='unknown_video'):
 
 
 def subtitles_filename(filename, sub_lang, sub_format, expected_real_ext=None):
-    return replace_extension(filename, sub_lang + '.' + sub_format, expected_real_ext)
+    return replace_extension(
+        filename, f'{sub_lang}.{sub_format}', expected_real_ext
+    )
 
 
 def datetime_from_str(date_str, precision='auto', format='%Y%m%d'):
@@ -1858,14 +1849,14 @@ def datetime_from_str(date_str, precision='auto', format='%Y%m%d'):
         start_time = datetime_from_str(match.group('start'), precision, format)
         time = int(match.group('time')) * (-1 if match.group('sign') == '-' else 1)
         unit = match.group('unit')
-        if unit == 'month' or unit == 'year':
+        if unit in ['month', 'year']:
             new_date = datetime_add_months(start_time, time * 12 if unit == 'year' else time)
             unit = 'day'
         else:
             if unit == 'week':
                 unit = 'day'
                 time *= 7
-            delta = datetime.timedelta(**{unit + 's': time})
+            delta = datetime.timedelta(**{f'{unit}s': time})
             new_date = start_time + delta
         if auto_precision:
             return datetime_round(new_date, unit)
@@ -1919,10 +1910,7 @@ def hyphenate_date(date_str):
     """
     Convert a date in 'YYYYMMDD' format to 'YYYY-MM-DD' format"""
     match = re.match(r'^(\d\d\d\d)(\d\d)(\d\d)$', date_str)
-    if match is not None:
-        return '-'.join(match.groups())
-    else:
-        return date_str
+    return '-'.join(match.groups()) if match is not None else date_str
 
 
 class DateRange(object):
@@ -2053,9 +2041,13 @@ def write_string(s, out=None, encoding=None):
         out = sys.stderr
     assert type(s) == compat_str
 
-    if sys.platform == 'win32' and encoding is None and hasattr(out, 'fileno'):
-        if _windows_write_string(s, out):
-            return
+    if (
+        sys.platform == 'win32'
+        and encoding is None
+        and hasattr(out, 'fileno')
+        and _windows_write_string(s, out)
+    ):
+        return
 
     if ('b' in getattr(out, 'mode', '')
             or sys.version_info[0] < 3):  # Python 2 lies about mode of sys.stderr
@@ -2073,16 +2065,11 @@ def write_string(s, out=None, encoding=None):
 def bytes_to_intlist(bs):
     if not bs:
         return []
-    if isinstance(bs[0], int):  # Python 3
-        return list(bs)
-    else:
-        return [ord(c) for c in bs]
+    return list(bs) if isinstance(bs[0], int) else [ord(c) for c in bs]
 
 
 def intlist_to_bytes(xs):
-    if not xs:
-        return b''
-    return compat_struct_pack('%dB' % len(xs), *xs)
+    return b'' if not xs else compat_struct_pack('%dB' % len(xs), *xs)
 
 
 # Cross-platform file locking
@@ -2242,7 +2229,7 @@ def smuggle_url(url, data):
     data.update(idata)
     sdata = compat_urllib_parse_urlencode(
         {'__youtubedl_smuggle': json.dumps(data)})
-    return url + '#' + sdata
+    return f'{url}#{sdata}'
 
 
 def unsmuggle_url(smug_url, default=None):
@@ -2377,8 +2364,7 @@ def parse_count(s):
     if ret is not None:
         return ret
 
-    mobj = re.match(r'([\d,.]+)(?:$|\s)', s)
-    if mobj:
+    if mobj := re.match(r'([\d,.]+)(?:$|\s)', s):
         return str_to_int(mobj.group(1))
 
 
@@ -2386,19 +2372,18 @@ def parse_resolution(s):
     if s is None:
         return {}
 
-    mobj = re.search(r'(?<![a-zA-Z0-9])(?P<w>\d+)\s*[xX×,]\s*(?P<h>\d+)(?![a-zA-Z0-9])', s)
-    if mobj:
+    if mobj := re.search(
+        r'(?<![a-zA-Z0-9])(?P<w>\d+)\s*[xX×,]\s*(?P<h>\d+)(?![a-zA-Z0-9])', s
+    ):
         return {
             'width': int(mobj.group('w')),
             'height': int(mobj.group('h')),
         }
 
-    mobj = re.search(r'(?<![a-zA-Z0-9])(\d+)[pPiI](?![a-zA-Z0-9])', s)
-    if mobj:
+    if mobj := re.search(r'(?<![a-zA-Z0-9])(\d+)[pPiI](?![a-zA-Z0-9])', s):
         return {'height': int(mobj.group(1))}
 
-    mobj = re.search(r'\b([48])[kK]\b', s)
-    if mobj:
+    if mobj := re.search(r'\b([48])[kK]\b', s):
         return {'height': int(mobj.group(1)) * 540}
 
     return {}
@@ -2407,8 +2392,7 @@ def parse_resolution(s):
 def parse_bitrate(s):
     if not isinstance(s, compat_str):
         return
-    mobj = re.search(r'\b(\d+)\s*kbps', s)
-    if mobj:
+    if mobj := re.search(r'\b(\d+)\s*kbps', s):
         return int(mobj.group(1))
 
 
@@ -2451,12 +2435,7 @@ def setproctitle(title):
 
     try:
         libc = ctypes.cdll.LoadLibrary('libc.so.6')
-    except OSError:
-        return
-    except TypeError:
-        # LoadLibrary in Windows Python 2.7.13 only expects
-        # a bytestring, but since unicode_literals turns
-        # every string into a unicode string, it fails.
+    except (OSError, TypeError):
         return
     title_bytes = title.encode('utf-8')
     buf = ctypes.create_string_buffer(len(title_bytes))
@@ -2478,10 +2457,10 @@ def remove_end(s, end):
 def remove_quotes(s):
     if s is None or len(s) < 2:
         return s
-    for quote in ('"', "'", ):
-        if s[0] == quote and s[-1] == quote:
-            return s[1:-1]
-    return s
+    return next(
+        (s[1:-1] for quote in ('"', "'") if s[0] == quote and s[-1] == quote),
+        s,
+    )
 
 
 def get_domain(url):
@@ -2596,17 +2575,18 @@ def parse_duration(s):
         return None
 
     days, hours, mins, secs, ms = [None] * 5
-    m = re.match(r'''(?x)
+    if m := re.match(
+        r'''(?x)
             (?P<before_secs>
                 (?:(?:(?P<days>[0-9]+):)?(?P<hours>[0-9]+):)?(?P<mins>[0-9]+):)?
             (?P<secs>(?(before_secs)[0-9]{1,2}|[0-9]+))
             (?P<ms>[.:][0-9]+)?Z?$
-        ''', s)
-    if m:
+        ''',
+        s,
+    ):
         days, hours, mins, secs, ms = m.group('days', 'hours', 'mins', 'secs', 'ms')
-    else:
-        m = re.match(
-            r'''(?ix)(?:P?
+    elif m := re.match(
+        r'''(?ix)(?:P?
                 (?:
                     [0-9]+\s*y(?:ears?)?\s*
                 )?
@@ -2628,15 +2608,17 @@ def parse_duration(s):
                 )?
                 (?:
                     (?P<secs>[0-9]+)(?P<ms>\.[0-9]+)?\s*s(?:ec(?:ond)?s?)?\s*
-                )?Z?$''', s)
-        if m:
-            days, hours, mins, secs, ms = m.groups()
-        else:
-            m = re.match(r'(?i)(?:(?P<hours>[0-9.]+)\s*(?:hours?)|(?P<mins>[0-9.]+)\s*(?:mins?\.?|minutes?)\s*)Z?$', s)
-            if m:
-                hours, mins = m.groups()
-            else:
-                return None
+                )?Z?$''',
+        s,
+    ):
+        days, hours, mins, secs, ms = m.groups()
+    elif m := re.match(
+        r'(?i)(?:(?P<hours>[0-9.]+)\s*(?:hours?)|(?P<mins>[0-9.]+)\s*(?:mins?\.?|minutes?)\s*)Z?$',
+        s,
+    ):
+        hours, mins = m.groups()
+    else:
+        return None
 
     duration = 0
     if secs:
@@ -2696,11 +2678,7 @@ def detect_exe_version(output, version_re=None, unrecognized='present'):
     assert isinstance(output, compat_str)
     if version_re is None:
         version_re = r'version\s+([-0-9._a-zA-Z]+)'
-    m = re.search(version_re, output)
-    if m:
-        return m.group(1)
-    else:
-        return unrecognized
+    return m.group(1) if (m := re.search(version_re, output)) else unrecognized
 
 
 def get_exe_version(exe, args=['--version'],
@@ -3111,15 +3089,15 @@ def parse_age_limit(s):
         return s if 0 <= s <= 21 else None
     if not isinstance(s, compat_basestring):
         return None
-    m = re.match(r'^(?P<age>\d{1,2})\+?$', s)
-    if m:
+    if m := re.match(r'^(?P<age>\d{1,2})\+?$', s):
         return int(m.group('age'))
     s = s.upper()
     if s in US_RATINGS:
         return US_RATINGS[s]
-    m = re.match(r'^TV[_-]?(%s)$' % '|'.join(k[3:] for k in TV_PARENTAL_GUIDELINES), s)
-    if m:
-        return TV_PARENTAL_GUIDELINES['TV-' + m.group(1)]
+    if m := re.match(
+        r'^TV[_-]?(%s)$' % '|'.join(k[3:] for k in TV_PARENTAL_GUIDELINES), s
+    ):
+        return TV_PARENTAL_GUIDELINES[f'TV-{m.group(1)}']
     return None
 
 
@@ -3160,8 +3138,7 @@ def js_to_json(code, vars={}):
             }.get(m.group(0), m.group(0)), v[1:-1])
         else:
             for regex, base in INTEGER_TABLE:
-                im = re.match(regex, v)
-                if im:
+                if im := re.match(regex, v):
                     i = int(im.group(1), base)
                     return '"%d":' % i if v.endswith(':') else '%d' % i
 
@@ -3238,8 +3215,8 @@ def limit_length(s, length):
     """ Add ellipses to overly long strings """
     if s is None:
         return None
-    ELLIPSES = '...'
     if len(s) > length:
+        ELLIPSES = '...'
         return s[:length - len(ELLIPSES)] + ELLIPSES
     return s
 
@@ -3397,12 +3374,9 @@ def parse_codecs(codecs_str):
 def urlhandle_detect_ext(url_handle):
     getheader = url_handle.headers.get
 
-    cd = getheader('Content-Disposition')
-    if cd:
-        m = re.match(r'attachment;\s*filename="(?P<filename>[^"]+)"', cd)
-        if m:
-            e = determine_ext(m.group('filename'), default_ext=None)
-            if e:
+    if cd := getheader('Content-Disposition'):
+        if m := re.match(r'attachment;\s*filename="(?P<filename>[^"]+)"', cd):
+            if e := determine_ext(m.group('filename'), default_ext=None):
                 return e
 
     return mimetype2ext(getheader('Content-Type'))
@@ -3522,8 +3496,7 @@ def _match_one(filter_part, dct, incomplete):
         )
         \s*$
         ''' % '|'.join(map(re.escape, COMPARISON_OPERATORS.keys())))
-    m = operator_rex.search(filter_part)
-    if m:
+    if m := operator_rex.search(filter_part):
         m = m.groupdict()
         unnegated_op = COMPARISON_OPERATORS[m['op']]
         if m['negation']:
@@ -3562,8 +3535,7 @@ def _match_one(filter_part, dct, incomplete):
         (?P<op>%s)\s*(?P<key>[a-z_]+)
         \s*$
         ''' % '|'.join(map(re.escape, UNARY_OPERATORS.keys())))
-    m = operator_rex.search(filter_part)
-    if m:
+    if m := operator_rex.search(filter_part):
         op = UNARY_OPERATORS[m.group('op')]
         actual_value = dct.get(m.group('key'))
         if incomplete and actual_value is None:
@@ -3586,9 +3558,8 @@ def match_filter_func(filter_str):
     def _match_func(info_dict, *args, **kwargs):
         if match_str(filter_str, info_dict, *args, **kwargs):
             return None
-        else:
-            video_title = info_dict.get('title', info_dict.get('id', 'video'))
-            return '%s does not pass filter %s, skipping ..' % (video_title, filter_str)
+        video_title = info_dict.get('title', info_dict.get('id', 'video'))
+        return '%s does not pass filter %s, skipping ..' % (video_title, filter_str)
     return _match_func
 
 
@@ -3596,12 +3567,10 @@ def parse_dfxp_time_expr(time_expr):
     if not time_expr:
         return
 
-    mobj = re.match(r'^(?P<time_offset>\d+(?:\.\d+)?)s?$', time_expr)
-    if mobj:
+    if mobj := re.match(r'^(?P<time_offset>\d+(?:\.\d+)?)s?$', time_expr):
         return float(mobj.group('time_offset'))
 
-    mobj = re.match(r'^(\d+):(\d\d):(\d\d(?:(?:\.|:)\d+)?)$', time_expr)
-    if mobj:
+    if mobj := re.match(r'^(\d+):(\d\d):(\d\d(?:(?:\.|:)\d+)?)$', time_expr):
         return 3600 * int(mobj.group(1)) + 60 * int(mobj.group(2)) + float(mobj.group(3).replace(':', '.'))
 
 
@@ -3665,8 +3634,7 @@ def dfxp2srt(dfxp_data):
                 if element_style_id:
                     style.update(styles.get(element_style_id, {}))
                 for prop in SUPPORTED_STYLING:
-                    prop_val = attrib.get(_x('tts:' + prop))
-                    if prop_val:
+                    if prop_val := attrib.get(_x(f'tts:{prop}')):
                         style[prop] = prop_val
                 if style:
                     font = ''
@@ -3689,7 +3657,7 @@ def dfxp2srt(dfxp_data):
                             self._out += '<u>'
                             unclosed_elements.append('u')
                     if font:
-                        self._out += '<font' + font + '>'
+                        self._out += f'<font{font}>'
                         unclosed_elements.append('font')
                     applied_style = {}
                     if self._applied_styles:
@@ -3812,10 +3780,12 @@ def cli_configuration_args(argdict, keys, default=[], use_compat=True):
 
     assert isinstance(keys, (list, tuple))
     for key_list in keys:
-        arg_list = list(filter(
-            lambda x: x is not None,
-            [argdict.get(key.lower()) for key in variadic(key_list)]))
-        if arg_list:
+        if arg_list := list(
+            filter(
+                lambda x: x is not None,
+                [argdict.get(key.lower()) for key in variadic(key_list)],
+            )
+        ):
             return [arg for args in arg_list for arg in args]
     return default
 
@@ -4600,7 +4570,7 @@ def long_to_bytes(n, blocksize=0):
     n = int(n)
     while n > 0:
         s = compat_struct_pack('>I', n & 0xffffffff) + s
-        n = n >> 32
+        n >>= 32
     # strip off leading zeros
     for i in range(len(s)):
         if s[i] != b'\000'[0]:
@@ -4628,7 +4598,7 @@ def bytes_to_long(s):
     if length % 4:
         extra = (4 - length % 4)
         s = b'\000' * extra + s
-        length = length + extra
+        length += extra
     for i in range(0, length, 4):
         acc = (acc << 32) + compat_struct_unpack('>I', s[i:i + 4])[0]
     return acc
@@ -4870,7 +4840,7 @@ def write_xattr(path, key, value):
             assert ':' not in key
             assert os.path.exists(path)
 
-            ads_fn = path + ':' + key
+            ads_fn = f'{path}:{key}'
             try:
                 with open(ads_fn, 'wb') as f:
                     f.write(value)
@@ -4904,19 +4874,17 @@ def write_xattr(path, key, value):
                 if p.returncode != 0:
                     raise XAttrMetadataError(p.returncode, stderr)
 
+            elif sys.platform.startswith('linux'):
+                raise XAttrUnavailableError(
+                    "Couldn't find a tool to set the xattrs. "
+                    "Install either the python 'pyxattr' or 'xattr' "
+                    "modules, or the GNU 'attr' package "
+                    "(which contains the 'setfattr' tool).")
             else:
-                # On Unix, and can't find pyxattr, setfattr, or xattr.
-                if sys.platform.startswith('linux'):
-                    raise XAttrUnavailableError(
-                        "Couldn't find a tool to set the xattrs. "
-                        "Install either the python 'pyxattr' or 'xattr' "
-                        "modules, or the GNU 'attr' package "
-                        "(which contains the 'setfattr' tool).")
-                else:
-                    raise XAttrUnavailableError(
-                        "Couldn't find a tool to set the xattrs. "
-                        "Install either the python 'xattr' module, "
-                        "or the 'xattr' binary.")
+                raise XAttrUnavailableError(
+                    "Couldn't find a tool to set the xattrs. "
+                    "Install either the python 'xattr' module, "
+                    "or the 'xattr' binary.")
 
 
 def random_birthday(year_field, month_field, day_field):
@@ -4989,7 +4957,7 @@ def iri_to_uri(iri):
     net_location += iri_parts.hostname.encode('idna').decode('utf-8')  # Punycode for Unicode hostnames.
     # The 'idna' encoding produces ASCII text.
     if iri_parts.port is not None and iri_parts.port != 80:
-        net_location += ':' + str(iri_parts.port)
+        net_location += f':{str(iri_parts.port)}'
 
     return compat_urllib_parse_urlunparse(
         (iri_parts.scheme,
@@ -5137,14 +5105,14 @@ def traverse_obj(
                     obj = enumerate(obj)
                 elif isinstance(obj, dict):
                     obj = obj.items()
-                else:
-                    if not traverse_string:
-                        return None
+                elif traverse_string:
                     obj = str(obj)
+                else:
+                    return None
                 _current_depth += 1
                 depth = max(depth, _current_depth)
                 return [_traverse_obj(v, path[i + 1:], _current_depth) for k, v in obj if key(k)]
-            elif isinstance(obj, dict) and not (is_user_input and key == ':'):
+            elif isinstance(obj, dict) and (not is_user_input or key != ':'):
                 obj = (obj.get(key) if casesense or (key in obj)
                        else next((v for k, v in obj.items() if _lower(k) == key), None))
             else:
@@ -5156,9 +5124,10 @@ def traverse_obj(
                 if not isinstance(key, (int, slice)):
                     return None
                 if not isinstance(obj, (list, tuple, LazyList)):
-                    if not traverse_string:
+                    if traverse_string:
+                        obj = str(obj)
+                    else:
                         return None
-                    obj = str(obj)
                 try:
                     obj = obj[key]
                 except IndexError:
@@ -5230,15 +5199,13 @@ def jwt_encode_hs256(payload_data, key, headers={}):
     payload_b64 = base64.b64encode(json.dumps(payload_data).encode('utf-8'))
     h = hmac.new(key.encode('utf-8'), header_b64 + b'.' + payload_b64, hashlib.sha256)
     signature_b64 = base64.b64encode(h.digest())
-    token = header_b64 + b'.' + payload_b64 + b'.' + signature_b64
-    return token
+    return header_b64 + b'.' + payload_b64 + b'.' + signature_b64
 
 
 # can be extended in future to verify the signature and parse header and return the algorithm used if it's not HS256
 def jwt_decode_hs256(jwt):
     header_b64, payload_b64, signature_b64 = jwt.split('.')
-    payload_data = json.loads(base64.urlsafe_b64decode(payload_b64))
-    return payload_data
+    return json.loads(base64.urlsafe_b64decode(payload_b64))
 
 
 def supports_terminal_sequences(stream):
@@ -5281,8 +5248,10 @@ def scale_thumbnails_to_max_format_width(formats, thumbnails, url_width_re):
     """
     _keys = ('width', 'height')
     max_dimensions = max(
-        [tuple(format.get(k) or 0 for k in _keys) for format in formats],
-        default=(0, 0))
+        (tuple(format.get(k) or 0 for k in _keys) for format in formats),
+        default=(0, 0),
+    )
+
     if not max_dimensions[0]:
         return thumbnails
     return [
@@ -5364,11 +5333,7 @@ class Config:
         eqre = re.compile('^(?P<key>' + ('|'.join(re.escape(po) for po in PRIVATE_OPTS)) + ')=.+$')
 
         def _scrub_eq(o):
-            m = eqre.match(o)
-            if m:
-                return m.group('key') + '=PRIVATE'
-            else:
-                return o
+            return m.group('key') + '=PRIVATE' if (m := eqre.match(o)) else o
 
         opts = list(map(_scrub_eq, opts))
         for idx, opt in enumerate(opts):

@@ -195,17 +195,22 @@ class ArchiveOrgIE(InfoExtractor):
 
         for f in metadata['files']:
             if f['name'] in entries:
-                entries[f['name']] = merge_dicts(entries[f['name']], {
-                    'id': identifier + '/' + f['name'],
-                    'title': f.get('title') or f['name'],
-                    'display_id': f['name'],
-                    'description': clean_html(f.get('description')),
-                    'creator': f.get('creator'),
-                    'duration': parse_duration(f.get('length')),
-                    'track_number': int_or_none(f.get('track')),
-                    'album': f.get('album'),
-                    'discnumber': int_or_none(f.get('disc')),
-                    'release_year': int_or_none(f.get('year'))})
+                entries[f['name']] = merge_dicts(
+                    entries[f['name']],
+                    {
+                        'id': f'{identifier}/' + f['name'],
+                        'title': f.get('title') or f['name'],
+                        'display_id': f['name'],
+                        'description': clean_html(f.get('description')),
+                        'creator': f.get('creator'),
+                        'duration': parse_duration(f.get('length')),
+                        'track_number': int_or_none(f.get('track')),
+                        'album': f.get('album'),
+                        'discnumber': int_or_none(f.get('disc')),
+                        'release_year': int_or_none(f.get('year')),
+                    },
+                )
+
                 entry = entries[f['name']]
             elif traverse_obj(f, 'original', expected_type=str) in entries:
                 entry = entries[f['original']]
@@ -213,22 +218,32 @@ class ArchiveOrgIE(InfoExtractor):
                 continue
 
             if f.get('format') == 'Thumbnail':
-                entry['thumbnails'].append({
-                    'id': f['name'],
-                    'url': 'https://archive.org/download/' + identifier + '/' + f['name'],
-                    'width': int_or_none(f.get('width')),
-                    'height': int_or_none(f.get('width')),
-                    'filesize': int_or_none(f.get('size'))})
+                entry['thumbnails'].append(
+                    {
+                        'id': f['name'],
+                        'url': f'https://archive.org/download/{identifier}/'
+                        + f['name'],
+                        'width': int_or_none(f.get('width')),
+                        'height': int_or_none(f.get('width')),
+                        'filesize': int_or_none(f.get('size')),
+                    }
+                )
+
 
             extension = (f['name'].rsplit('.', 1) + [None])[1]
             if extension in KNOWN_EXTENSIONS:
-                entry['formats'].append({
-                    'url': 'https://archive.org/download/' + identifier + '/' + f['name'],
-                    'format': f.get('format'),
-                    'width': int_or_none(f.get('width')),
-                    'height': int_or_none(f.get('height')),
-                    'filesize': int_or_none(f.get('size')),
-                    'protocol': 'https'})
+                entry['formats'].append(
+                    {
+                        'url': f'https://archive.org/download/{identifier}/'
+                        + f['name'],
+                        'format': f.get('format'),
+                        'width': int_or_none(f.get('width')),
+                        'height': int_or_none(f.get('height')),
+                        'filesize': int_or_none(f.get('size')),
+                        'protocol': 'https',
+                    }
+                )
+
 
         for entry in entries.values():
             self._sort_formats(entry['formats'])
@@ -471,7 +486,7 @@ class YoutubeWebArchiveIE(InfoExtractor):
         res = self._download_json('https://web.archive.org/cdx/search/cdx', item_id, note, query=query)
         if isinstance(res, list) and len(res) >= 2:
             # format response to make it easier to use
-            return list(dict(zip(res[0], v)) for v in res[1:])
+            return [dict(zip(res[0], v)) for v in res[1:]]
         elif not isinstance(res, list) or len(res) != 0:
             self.report_warning('Error while parsing CDX API response' + bug_reports_message())
 
@@ -637,9 +652,14 @@ class YoutubeWebArchiveIE(InfoExtractor):
         info = {'id': video_id}
         for capture in capture_dates:
             webpage = self._download_webpage(
-                (self._WAYBACK_BASE_URL + 'http://www.youtube.com/watch?v=%s') % (capture, video_id),
-                video_id=video_id, fatal=False, errnote='unable to download capture webpage (it may not be archived)',
-                note='Downloading capture webpage')
+                f'{self._WAYBACK_BASE_URL}http://www.youtube.com/watch?v=%s'
+                % (capture, video_id),
+                video_id=video_id,
+                fatal=False,
+                errnote='unable to download capture webpage (it may not be archived)',
+                note='Downloading capture webpage',
+            )
+
             current_info = self._extract_metadata(video_id, webpage or '')
             # Try avoid getting deleted video metadata
             if current_info.get('title'):
@@ -657,13 +677,13 @@ class YoutubeWebArchiveIE(InfoExtractor):
             itag = try_get(video_file_url_qs, lambda x: x['itag'][0])
             if itag and itag in YoutubeIE._formats:
                 format.update(YoutubeIE._formats[itag])
-                format.update({'format_id': itag})
+                format['format_id'] = itag
             else:
                 mime = try_get(video_file_url_qs, lambda x: x['mime'][0])
                 ext = (mimetype2ext(mime)
                        or urlhandle_detect_ext(urlh)
                        or mimetype2ext(urlh.headers.get('x-archive-guessed-content-type')))
-                format.update({'ext': ext})
+                format['ext'] = ext
             info['formats'] = [format]
             if not info.get('duration'):
                 info['duration'] = str_to_int(try_get(video_file_url_qs, lambda x: x['dur'][0]))

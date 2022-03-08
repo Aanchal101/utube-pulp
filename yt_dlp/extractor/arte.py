@@ -73,8 +73,7 @@ class ArteTVIE(ArteTVBaseIE):
             upload_date_str = (player_info.get('VRA') or player_info.get('VDA') or '').split(' ')[0]
 
         title = (player_info.get('VTI') or player_info['VID']).strip()
-        subtitle = player_info.get('VSU', '').strip()
-        if subtitle:
+        if subtitle := player_info.get('VSU', '').strip():
             title += ' - %s' % subtitle
 
         qfunc = qualities(['MQ', 'HQ', 'EQ', 'SQ'])
@@ -132,12 +131,14 @@ class ArteTVIE(ArteTVBaseIE):
                 r'VO(?:(?!{0}).+?)?-STM(?!{0}).+?$'.format(l),
             )
 
-            for pref, p in enumerate(PREFERENCES):
-                if re.match(p, versionCode):
-                    lang_pref = len(PREFERENCES) - pref
-                    break
-            else:
-                lang_pref = -1
+            lang_pref = next(
+                (
+                    len(PREFERENCES) - pref
+                    for pref, p in enumerate(PREFERENCES)
+                    if re.match(p, versionCode)
+                ),
+                -1,
+            )
 
             media_type = f.get('mediaType')
             if media_type == 'hls':

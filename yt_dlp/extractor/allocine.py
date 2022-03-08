@@ -81,9 +81,9 @@ class AllocineIE(InfoExtractor):
         formats = []
         quality = qualities(['ld', 'md', 'hd'])
 
-        model = self._html_search_regex(
-            r'data-model="([^"]+)"', webpage, 'data model', default=None)
-        if model:
+        if model := self._html_search_regex(
+            r'data-model="([^"]+)"', webpage, 'data model', default=None
+        ):
             model_data = self._parse_json(model, display_id)
             video = model_data['videos'][0]
             title = video['title']

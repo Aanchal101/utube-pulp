@@ -99,8 +99,7 @@ class FakeYDL(YoutubeDL):
 
 def gettestcases(include_onlymatching=False):
     for ie in yt_dlp.extractor.gen_extractors():
-        for tc in ie.get_testcases(include_onlymatching):
-            yield tc
+        yield from ie.get_testcases(include_onlymatching)
 
 
 md5 = lambda s: hashlib.md5(s.encode('utf-8')).hexdigest()
@@ -160,7 +159,7 @@ def expect_value(self, got, expected, field):
             self.assertTrue(
                 isinstance(got, compat_str),
                 'Expected field %s to be a unicode object, but got value %r of type %r' % (field, got, type(got)))
-            got = 'md5:' + md5(got)
+            got = f'md5:{md5(got)}'
         elif isinstance(expected, compat_str) and re.match(r'^(?:min|max)?count:\d+', expected):
             self.assertTrue(
                 isinstance(got, (list, dict)),
@@ -287,17 +286,13 @@ def expect_info_dict(self, got_dict, expected_dict):
 def assertRegexpMatches(self, text, regexp, msg=None):
     if hasattr(self, 'assertRegexp'):
         return self.assertRegexp(text, regexp, msg)
-    else:
-        m = re.match(regexp, text)
-        if not m:
-            note = 'Regexp didn\'t match: %r not found' % (regexp)
-            if len(text) < 1000:
-                note += ' in %r' % text
-            if msg is None:
-                msg = note
-            else:
-                msg = note + ', ' + msg
-            self.assertTrue(m, msg)
+    m = re.match(regexp, text)
+    if not m:
+        note = 'Regexp didn\'t match: %r not found' % (regexp)
+        if len(text) < 1000:
+            note += ' in %r' % text
+        msg = note if msg is None else f'{note}, {msg}'
+        self.assertTrue(m, msg)
 
 
 def assertGreaterEqual(self, got, expected, msg=None):
@@ -315,7 +310,7 @@ def assertLessEqual(self, got, expected, msg=None):
 
 
 def assertEqual(self, got, expected, msg=None):
-    if not (got == expected):
+    if got != expected:
         if msg is None:
             msg = '%r not equal to %r' % (got, expected)
         self.assertTrue(got == expected, msg)

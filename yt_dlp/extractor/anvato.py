@@ -253,9 +253,14 @@ class AnvatoIE(InfoExtractor):
         if self.__server_time is not None:
             return self.__server_time
 
-        self.__server_time = int(self._download_json(
-            self._api_prefix(access_key) + 'server_time?anvack=' + access_key, video_id,
-            note='Fetching server time')['server_time'])
+        self.__server_time = int(
+            self._download_json(
+                f'{self._api_prefix(access_key)}server_time?anvack={access_key}',
+                video_id,
+                note='Fetching server time',
+            )['server_time']
+        )
+
 
         return self.__server_time
 
@@ -366,8 +371,7 @@ class AnvatoIE(InfoExtractor):
                 continue
             access_key = anvplayer_data.get('accessKey')
             if not access_key:
-                mcp = anvplayer_data.get('mcp')
-                if mcp:
+                if mcp := anvplayer_data.get('mcp'):
                     access_key = AnvatoIE._MCP_TO_ACCESS_KEY_TABLE.get(
                         mcp.lower())
             if not access_key:

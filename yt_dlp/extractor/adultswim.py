@@ -150,8 +150,7 @@ class AdultSwimIE(TurnerBaseIE):
             }
 
             auth = video_data.get('auth')
-            media_id = video_data.get('mediaID')
-            if media_id:
+            if media_id := video_data.get('mediaID'):
                 info.update(self._extract_ngtv_info(media_id, {
                     # CDN_TOKEN_APP_ID from:
                     # https://d2gg02c3xr550i.cloudfront.net/assets/asvp.e9c8bef24322d060ef87.bundle.js
@@ -163,9 +162,16 @@ class AdultSwimIE(TurnerBaseIE):
                 }))
 
             if not auth:
-                extract_data = self._download_json(
-                    'https://www.adultswim.com/api/shows/v1/videos/' + video_id,
-                    video_id, query={'fields': 'stream'}, fatal=False) or {}
+                extract_data = (
+                    self._download_json(
+                        f'https://www.adultswim.com/api/shows/v1/videos/{video_id}',
+                        video_id,
+                        query={'fields': 'stream'},
+                        fatal=False,
+                    )
+                    or {}
+                )
+
                 assets = try_get(extract_data, lambda x: x['data']['video']['stream']['assets'], list) or []
                 for asset in assets:
                     asset_url = asset.get('url')

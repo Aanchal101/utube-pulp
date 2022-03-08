@@ -92,8 +92,7 @@ class AolIE(YahooIE):
 
         video_data = response['data']
         formats = []
-        m3u8_url = url_or_none(video_data.get('videoMasterPlaylist'))
-        if m3u8_url:
+        if m3u8_url := url_or_none(video_data.get('videoMasterPlaylist')):
             formats.extend(self._extract_m3u8_formats(
                 m3u8_url, video_id, 'mp4', m3u8_id='hls', fatal=False))
         for rendition in video_data.get('renditions', []):
@@ -109,8 +108,7 @@ class AolIE(YahooIE):
                     'url': video_url,
                     'format_id': rendition.get('quality'),
                 }
-                mobj = re.search(r'(\d+)x(\d+)', video_url)
-                if mobj:
+                if mobj := re.search(r'(\d+)x(\d+)', video_url):
                     f.update({
                         'width': int(mobj.group(1)),
                         'height': int(mobj.group(2)),

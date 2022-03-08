@@ -220,11 +220,7 @@ class BrightcoveLegacyIE(InfoExtractor):
 
     @classmethod
     def _build_brightcove_url_from_js(cls, object_js):
-        # The layout of JS is as follows:
-        # customBC.createVideo = function (width, height, playerID, playerKey, videoPlayer, VideoRandomID) {
-        #   // build Brightcove <object /> XML
-        # }
-        m = re.search(
+        if m := re.search(
             r'''(?x)customBC\.createVideo\(
                 .*?                                                  # skipping width and height
                 ["\'](?P<playerID>\d+)["\']\s*,\s*                   # playerID
@@ -232,8 +228,9 @@ class BrightcoveLegacyIE(InfoExtractor):
                                                                      # in length, however it's appended to itself
                                                                      # in places, so truncate
                 ["\'](?P<videoID>\d+)["\']                           # @videoPlayer
-            ''', object_js)
-        if m:
+            ''',
+            object_js,
+        ):
             return cls._make_brightcove_url(m.groupdict())
 
     @classmethod
@@ -253,31 +250,31 @@ class BrightcoveLegacyIE(InfoExtractor):
     def _extract_brightcove_urls(cls, webpage):
         """Return a list of all Brightcove URLs from the webpage """
 
-        url_m = re.search(
+        if url_m := re.search(
             r'''(?x)
                 <meta\s+
                     (?:property|itemprop)=([\'"])(?:og:video|embedURL)\1[^>]+
                     content=([\'"])(?P<url>https?://(?:secure|c)\.brightcove.com/(?:(?!\2).)+)\2
-            ''', webpage)
-        if url_m:
+            ''',
+            webpage,
+        ):
             url = unescapeHTML(url_m.group('url'))
             # Some sites don't add it, we can't download with this url, for example:
             # http://www.ktvu.com/videos/news/raw-video-caltrain-releases-video-of-man-almost/vCTZdY/
             if 'playerKey' in url or 'videoId' in url or 'idVideo' in url:
                 return [url]
 
-        matches = re.findall(
+        if matches := re.findall(
             r'''(?sx)<object
             (?:
                 [^>]+?class=[\'"][^>]*?BrightcoveExperience.*?[\'"] |
                 [^>]*?>\s*<param\s+name="movie"\s+value="https?://[^/]*brightcove\.com/
             ).+?>\s*</object>''',
-            webpage)
-        if matches:
+            webpage,
+        ):
             return list(filter(None, [cls._build_brightcove_url(m) for m in matches]))
 
-        matches = re.findall(r'(customBC\.createVideo\(.+?\);)', webpage)
-        if matches:
+        if matches := re.findall(r'(customBC\.createVideo\(.+?\);)', webpage):
             return list(filter(None, [
                 cls._build_brightcove_url_from_js(custom_bc)
                 for custom_bc in matches]))
@@ -295,8 +292,7 @@ class BrightcoveLegacyIE(InfoExtractor):
         query_str = mobj.group('query')
         query = compat_urlparse.parse_qs(query_str)
 
-        videoPlayer = query.get('@videoPlayer')
-        if videoPlayer:
+        if videoPlayer := query.get('@videoPlayer'):
             # We set the original url as the default 'Referer' header
             referer = query.get('linkBaseURL', [None])[0] or smuggled_data.get('Referer', url)
             video_id = videoPlayer[0]
@@ -317,10 +313,13 @@ class BrightcoveLegacyIE(InfoExtractor):
                         headers = {}
                         if referer:
                             headers['Referer'] = referer
-                        player_page = self._download_webpage(
-                            'http://link.brightcove.com/services/player/bcpid' + player_id[0],
-                            video_id, headers=headers, fatal=False)
-                        if player_page:
+                        if player_page := self._download_webpage(
+                            'http://link.brightcove.com/services/player/bcpid'
+                            + player_id[0],
+                            video_id,
+                            headers=headers,
+                            fatal=False,
+                        ):
                             player_key = self._search_regex(
                                 r'<param\s+name="playerKey"\s+value="([\w~,-]+)"',
                                 player_page, 'player key', fatal=False)
@@ -417,12 +416,14 @@ class BrightcoveNewIE(AdobePassIE):
         # 4. http://docs.brightcove.com/en/video-cloud/brightcove-player/guides/in-page-embed-player-implementation.html
         # 5. https://support.brightcove.com/en/video-cloud/docs/dynamically-assigning-videos-player
 
-        entries = []
+        entries = [
+            url if url.startswith('http') else f'http:{url}'
+            for _, url in re.findall(
+                r'<iframe[^>]+src=(["\'])((?:https?:)?//players\.brightcove\.net/\d+/[^/]+/index\.html.+?)\1',
+                webpage,
+            )
+        ]
 
-        # Look for iframe embeds [1]
-        for _, url in re.findall(
-                r'<iframe[^>]+src=(["\'])((?:https?:)?//players\.brightcove\.net/\d+/[^/]+/index\.html.+?)\1', webpage):
-            entries.append(url if url.startswith('http') else 'http:' + url)
 
         # Look for <video> tags [2] and embed_in_page embeds [3]
         # [2] looks like:
@@ -609,26 +610,28 @@ class BrightcoveNewIE(AdobePassIE):
 
         def extract_policy_key():
             base_url = 'http://players.brightcove.net/%s/%s_%s/' % (account_id, player_id, embed)
-            config = self._download_json(
-                base_url + 'config.json', video_id, fatal=False) or {}
+            config = (
+                self._download_json(f'{base_url}config.json', video_id, fatal=False)
+                or {}
+            )
+
             policy_key = try_get(
                 config, lambda x: x['video_cloud']['policy_key'])
             if not policy_key:
-                webpage = self._download_webpage(
-                    base_url + 'index.min.js', video_id)
+                webpage = self._download_webpage(f'{base_url}index.min.js', video_id)
 
                 catalog = self._search_regex(
                     r'catalog\(({.+?})\);', webpage, 'catalog', default=None)
                 if catalog:
                     catalog = self._parse_json(
                         js_to_json(catalog), video_id, fatal=False)
-                    if catalog:
-                        policy_key = catalog.get('policyKey')
+                if catalog:
+                    policy_key = catalog.get('policyKey')
 
-                if not policy_key:
-                    policy_key = self._search_regex(
-                        r'policyKey\s*:\s*(["\'])(?P<pk>.+?)\1',
-                        webpage, 'policy key', group='pk')
+            if not policy_key:
+                policy_key = self._search_regex(
+                    r'policyKey\s*:\s*(["\'])(?P<pk>.+?)\1',
+                    webpage, 'policy key', group='pk')
 
             store_pk(policy_key)
             return policy_key

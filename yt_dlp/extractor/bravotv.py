@@ -52,11 +52,12 @@ class BravoTVIE(AdobePassIE):
             'mbr': 'true',
         }
         account_pid, release_pid = [None] * 2
-        tve = settings.get('ls_tve')
-        if tve:
+        if tve := settings.get('ls_tve'):
             query['manifest'] = 'm3u'
-            mobj = re.search(r'<[^>]+id="pdk-player"[^>]+data-url=["\']?(?:https?:)?//player\.theplatform\.com/p/([^/]+)/(?:[^/]+/)*select/([^?#&"\']+)', webpage)
-            if mobj:
+            if mobj := re.search(
+                r'<[^>]+id="pdk-player"[^>]+data-url=["\']?(?:https?:)?//player\.theplatform\.com/p/([^/]+)/(?:[^/]+/)*select/([^?#&"\']+)',
+                webpage,
+            ):
                 account_pid, tp_path = mobj.groups()
                 release_pid = tp_path.strip('/').split('/')[-1]
             else:
@@ -79,7 +80,7 @@ class BravoTVIE(AdobePassIE):
             tp_path = release_pid = metadata.get('release_pid')
             if not release_pid:
                 release_pid = metadata['guid']
-                tp_path = 'media/guid/2140479951/' + release_pid
+                tp_path = f'media/guid/2140479951/{release_pid}'
             info.update({
                 'title': metadata['title'],
                 'description': metadata.get('description'),
@@ -90,10 +91,11 @@ class BravoTVIE(AdobePassIE):
 
         tp_url = 'http://link.theplatform.com/s/%s/%s' % (account_pid, tp_path)
 
-        tp_metadata = self._download_json(
+        if tp_metadata := self._download_json(
             update_url_query(tp_url, {'format': 'preview'}),
-            display_id, fatal=False)
-        if tp_metadata:
+            display_id,
+            fatal=False,
+        ):
             info.update({
                 'title': tp_metadata.get('title'),
                 'description': tp_metadata.get('description'),

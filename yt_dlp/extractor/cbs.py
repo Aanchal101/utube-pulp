@@ -18,8 +18,7 @@ class CBSBaseIE(ThePlatformFeedIE):
         for k, ext in [('sMPTE-TTCCURL', 'tt'), ('ClosedCaptionURL', 'ttml'), ('webVTTCaptionURL', 'vtt')]:
             cc_e = find_xpath_attr(smil, self._xpath_ns('.//param', namespace), 'name', k)
             if cc_e is not None:
-                cc_url = cc_e.get('value')
-                if cc_url:
+                if cc_url := cc_e.get('value'):
                     subtitles.setdefault(subtitles_lang, []).append({
                         'ext': ext,
                         'url': cc_url,

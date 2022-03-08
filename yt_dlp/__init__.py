@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-f'You are using an unsupported version of Python. Only Python versions 3.6 and above are supported by yt-dlp'  # noqa: F541
+'You are using an unsupported version of Python. Only Python versions 3.6 and above are supported by yt-dlp'
+
 
 __license__ = 'Public Domain'
 
@@ -346,8 +347,7 @@ def _real_main(argv=None):
             _unused_compat_opt('filename')
 
     def validate_outtmpl(tmpl, msg):
-        err = YoutubeDL.validate_outtmpl(tmpl)
-        if err:
+        if err := YoutubeDL.validate_outtmpl(tmpl):
             parser.error('invalid %s %r: %s' % (msg, tmpl, error_to_compat_str(err)))
 
     for k, tmpl in opts.outtmpl.items():

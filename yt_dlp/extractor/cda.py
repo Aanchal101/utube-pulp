@@ -154,8 +154,8 @@ class CDAIE(InfoExtractor):
                 a = a.replace(p, '.cda.pl')
             if '/upstream' in a:
                 a = a.replace('/upstream', '.mp4/upstream')
-                return 'https://' + a
-            return 'https://' + a + '.mp4'
+                return f'https://{a}'
+            return f'https://{a}.mp4'
 
         def extract_format(page, version):
             json_str = self._html_search_regex(

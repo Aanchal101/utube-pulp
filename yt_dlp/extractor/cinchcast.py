@@ -40,9 +40,9 @@ class CinchcastIE(InfoExtractor):
             'format_id': 'main',
             'url': item.find('./{http://search.yahoo.com/mrss/}content').attrib['url'],
         }]
-        backup_url = xpath_text(
-            item, './{http://developer.longtailvideo.com/trac/}backupContent')
-        if backup_url:
+        if backup_url := xpath_text(
+            item, './{http://developer.longtailvideo.com/trac/}backupContent'
+        ):
             formats.append({
                 'preference': 2,  # seems to be more reliable
                 'format_id': 'backup',

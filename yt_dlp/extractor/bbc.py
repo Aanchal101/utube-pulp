@@ -288,8 +288,7 @@ class BBCCoUkIE(InfoExtractor):
             headers={'Referer': self._LOGIN_URL})
 
         if self._LOGIN_URL in urlh.geturl():
-            error = clean_html(get_element_by_class('form-message', response))
-            if error:
+            if error := clean_html(get_element_by_class('form-message', response)):
                 raise ExtractorError(
                     'Unable to login: %s' % error, expected=True)
             raise ExtractorError('Unable to log in')
@@ -309,8 +308,7 @@ class BBCCoUkIE(InfoExtractor):
         return playlist.findall('./{%s}item' % self._EMP_PLAYLIST_NS)
 
     def _extract_medias(self, media_selection):
-        error = media_selection.get('result')
-        if error:
+        if error := media_selection.get('result'):
             raise BBCCoUkIE.MediaSelectionError(error)
         return media_selection.get('media') or []
 
@@ -386,11 +384,18 @@ class BBCCoUkIE(InfoExtractor):
                     format_id = supplier or conn_kind or protocol
                     # ASX playlist
                     if supplier == 'asx':
-                        for i, ref in enumerate(self._extract_asx_playlist(connection, programme_id)):
-                            formats.append({
+                        formats.extend(
+                            {
                                 'url': ref,
                                 'format_id': 'ref%s_%s' % (i, format_id),
-                            })
+                            }
+                            for i, ref in enumerate(
+                                self._extract_asx_playlist(
+                                    connection, programme_id
+                                )
+                            )
+                        )
+
                     elif transfer_format == 'dash':
                         formats.extend(self._extract_mpd_formats(
                             href, programme_id, mpd_id=format_id, fatal=False))
@@ -401,8 +406,9 @@ class BBCCoUkIE(InfoExtractor):
                                 href, programme_id, ext='mp4', entry_protocol='m3u8_native',
                                 m3u8_id=format_id, fatal=False)
                         except ExtractorError as e:
-                            if not (isinstance(e.exc_info[1], compat_urllib_error.HTTPError)
-                                    and e.exc_info[1].code in (403, 404)):
+                            if not isinstance(
+                                e.exc_info[1], compat_urllib_error.HTTPError
+                            ) or e.exc_info[1].code not in (403, 404):
                                 raise
                             fmts = []
                         formats.extend(fmts)
@@ -431,9 +437,7 @@ class BBCCoUkIE(InfoExtractor):
                             })
                         if protocol in ('http', 'https'):
                             # Direct link
-                            fmt.update({
-                                'url': href,
-                            })
+                            fmt['url'] = href
                         elif protocol == 'rtmp':
                             application = connection.get('application', 'ondemand')
                             auth_string = connection.get('authString')
@@ -552,20 +556,23 @@ class BBCCoUkIE(InfoExtractor):
 
         webpage = self._download_webpage(url, group_id, 'Downloading video page')
 
-        error = self._search_regex(
+        if error := self._search_regex(
             r'<div\b[^>]+\bclass=["\'](?:smp|playout)__message delta["\'][^>]*>\s*([^<]+?)\s*<',
-            webpage, 'error', default=None)
-        if error:
+            webpage,
+            'error',
+            default=None,
+        ):
             raise ExtractorError(error, expected=True)
 
         programme_id = None
         duration = None
 
-        tviplayer = self._search_regex(
+        if tviplayer := self._search_regex(
             r'mediator\.bind\(({.+?})\s*,\s*document\.getElementById',
-            webpage, 'player', default=None)
-
-        if tviplayer:
+            webpage,
+            'player',
+            default=None,
+        ):
             player = self._parse_json(tviplayer, group_id).get('player', {})
             duration = int_or_none(player.get('duration'))
             programme_id = player.get('vpid')
@@ -863,11 +870,7 @@ class BBCIE(BBCCoUkIE):
                 else super(BBCIE, cls).suitable(url))
 
     def _extract_from_media_meta(self, media_meta, video_id):
-        # Direct links to media in media metadata (e.g.
-        # http://www.bbc.com/turkce/haberler/2015/06/150615_telabyad_kentin_cogu)
-        # TODO: there are also f4m and m3u8 streams incorporated in playlist.sxml
-        source_files = media_meta.get('sourceFiles')
-        if source_files:
+        if source_files := media_meta.get('sourceFiles'):
             return [{
                 'url': f['url'],
                 'format_id': format_id,
@@ -876,13 +879,10 @@ class BBCIE(BBCCoUkIE):
                 'filesize': int_or_none(f.get('filesize')),
             } for format_id, f in source_files.items() if f.get('url')], []
 
-        programme_id = media_meta.get('externalId')
-        if programme_id:
+        if programme_id := media_meta.get('externalId'):
             return self._download_media_selector(programme_id)
 
-        # Process playlist.sxml as legacy playlist
-        href = media_meta.get('href')
-        if href:
+        if href := media_meta.get('href'):
             playlist = self._download_legacy_playlist_url(href)
             _, _, _, _, formats, subtitles = self._extract_from_legacy_playlist(playlist, video_id)
             return formats, subtitles
@@ -1209,25 +1209,37 @@ class BBCIE(BBCCoUkIE):
                 for item in (try_get(media, lambda x: x['media']['items'], list) or []):
                     item_id = item.get('id')
                     item_title = item.get('title')
-                    if not (item_id and item_title):
+                    if not item_id or not item_title:
                         continue
                     formats, subtitles = self._download_media_selector(item_id)
                     self._sort_formats(formats)
                     item_desc = None
-                    blocks = try_get(media, lambda x: x['summary']['blocks'], list)
-                    if blocks:
+                    if blocks := try_get(media, lambda x: x['summary']['blocks'], list):
                         summary = []
-                        for block in blocks:
-                            text = try_get(block, lambda x: x['model']['text'], compat_str)
-                            if text:
-                                summary.append(text)
+                        summary.extend(
+                            text
+                            for block in blocks
+                            if (
+                                text := try_get(
+                                    block, lambda x: x['model']['text'], compat_str
+                                )
+                            )
+                        )
+
                         if summary:
                             item_desc = '\n\n'.join(summary)
-                    item_time = None
-                    for meta in try_get(media, lambda x: x['metadata']['items'], list) or []:
-                        if try_get(meta, lambda x: x['label']) == 'Published':
-                            item_time = unified_timestamp(meta.get('timestamp'))
-                            break
+                    item_time = next(
+                        (
+                            unified_timestamp(meta.get('timestamp'))
+                            for meta in try_get(
+                                media, lambda x: x['metadata']['items'], list
+                            )
+                            or []
+                            if try_get(meta, lambda x: x['label']) == 'Published'
+                        ),
+                        None,
+                    )
+
                     entries.append({
                         'id': item_id,
                         'title': item_title,
@@ -1432,15 +1444,14 @@ class BBCCoUkIPlayerPlaylistBaseIE(InfoExtractor):
             if not episode_id:
                 continue
             thumbnail = None
-            image = self._get_episode_image(episode)
-            if image:
+            if image := self._get_episode_image(episode):
                 thumbnail = image.replace('{recipe}', 'raw')
             category = self._get_default(episode, 'labels', 'category')
             yield {
                 '_type': 'url',
                 'id': episode_id,
                 'title': self._get_episode_field(episode, 'subtitle'),
-                'url': 'https://www.bbc.co.uk/iplayer/episode/' + episode_id,
+                'url': f'https://www.bbc.co.uk/iplayer/episode/{episode_id}',
                 'thumbnail': thumbnail,
                 'description': self._get_description(episode),
                 'categories': [category] if category else None,
