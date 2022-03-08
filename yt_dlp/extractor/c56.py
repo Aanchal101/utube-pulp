@@ -34,9 +34,12 @@ class C56IE(InfoExtractor):
         text_id = mobj.group('textid')
 
         webpage = self._download_webpage(url, text_id)
-        sohu_video_info_str = self._search_regex(
-            r'var\s+sohuVideoInfo\s*=\s*({[^}]+});', webpage, 'Sohu video info', default=None)
-        if sohu_video_info_str:
+        if sohu_video_info_str := self._search_regex(
+            r'var\s+sohuVideoInfo\s*=\s*({[^}]+});',
+            webpage,
+            'Sohu video info',
+            default=None,
+        ):
             sohu_video_info = self._parse_json(
                 sohu_video_info_str, text_id, transform_source=js_to_json)
             return self.url_result(sohu_video_info['url'], 'Sohu')

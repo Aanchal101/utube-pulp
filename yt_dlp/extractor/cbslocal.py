@@ -98,8 +98,7 @@ class CBSLocalArticleIE(AnvatoIE):
         display_id = self._match_id(url)
         webpage = self._download_webpage(url, display_id)
 
-        sendtonews_url = SendtoNewsIE._extract_url(webpage)
-        if sendtonews_url:
+        if sendtonews_url := SendtoNewsIE._extract_url(webpage):
             return self.url_result(
                 compat_urlparse.urljoin(url, sendtonews_url),
                 ie=SendtoNewsIE.ie_key())

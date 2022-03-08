@@ -53,21 +53,24 @@ class YoutubeLiveChatFD(FragmentFD):
                 processed_fragment.extend(
                     json.dumps(action, ensure_ascii=False).encode('utf-8') + b'\n')
             if offset is not None:
-                continuation = try_get(
+                if continuation := try_get(
                     live_chat_continuation,
-                    lambda x: x['continuations'][0]['liveChatReplayContinuationData'], dict)
-                if continuation:
+                    lambda x: x['continuations'][0]['liveChatReplayContinuationData'],
+                    dict,
+                ):
                     continuation_id = continuation.get('continuation')
                     click_tracking_params = continuation.get('clickTrackingParams')
             self._append_fragment(ctx, processed_fragment)
             return continuation_id, offset, click_tracking_params
 
         def try_refresh_replay_beginning(live_chat_continuation):
-            # choose the second option that contains the unfiltered live chat replay
-            refresh_continuation = try_get(
+            if refresh_continuation := try_get(
                 live_chat_continuation,
-                lambda x: x['header']['liveChatHeaderRenderer']['viewSelector']['sortFilterSubMenuRenderer']['subMenuItems'][1]['continuation']['reloadContinuationData'], dict)
-            if refresh_continuation:
+                lambda x: x['header']['liveChatHeaderRenderer']['viewSelector'][
+                    'sortFilterSubMenuRenderer'
+                ]['subMenuItems'][1]['continuation']['reloadContinuationData'],
+                dict,
+            ):
                 # no data yet but required to call _append_fragment
                 self._append_fragment(ctx, b'')
                 refresh_continuation_id = refresh_continuation.get('continuation')
@@ -98,8 +101,9 @@ class YoutubeLiveChatFD(FragmentFD):
                 lambda x: x['continuations'][0]['invalidationContinuationData'],
                 lambda x: x['continuations'][0]['timedContinuationData'],
             ]
-            continuation_data = try_get(live_chat_continuation, continuation_data_getters, dict)
-            if continuation_data:
+            if continuation_data := try_get(
+                live_chat_continuation, continuation_data_getters, dict
+            ):
                 continuation_id = continuation_data.get('continuation')
                 click_tracking_params = continuation_data.get('clickTrackingParams')
                 timeout_ms = int_or_none(continuation_data.get('timeoutMs'))
@@ -225,8 +229,7 @@ class YoutubeLiveChatFD(FragmentFD):
             lambda x: x['showItemEndpoint']['showLiveChatItemEndpoint']['renderer'],
             lambda x: x['contents'],
         ]
-        parent_item = try_get(renderer, parent_item_getters, dict)
-        if parent_item:
+        if parent_item := try_get(renderer, parent_item_getters, dict):
             renderer = dict_get(parent_item, [
                 'liveChatTextMessageRenderer', 'liveChatPaidMessageRenderer',
                 'liveChatMembershipItemRenderer', 'liveChatPaidStickerRenderer',

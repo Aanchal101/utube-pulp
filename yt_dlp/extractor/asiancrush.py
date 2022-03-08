@@ -42,10 +42,8 @@ class AsianCrushBaseIE(InfoExtractor):
 
         entry_id, partner_id = [None] * 2
         for k in self._KALTURA_KEYS:
-            k_url = video.get(k)
-            if k_url:
-                mobj = re.search(r'/p/(\d+)/.+?/entryId/([^/]+)/', k_url)
-                if mobj:
+            if k_url := video.get(k):
+                if mobj := re.search(r'/p/(\d+)/.+?/entryId/([^/]+)/', k_url):
                     partner_id, entry_id = mobj.groups()
                     break
 

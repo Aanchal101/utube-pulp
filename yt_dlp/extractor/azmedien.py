@@ -54,11 +54,15 @@ class AZMedienIE(InfoExtractor):
 
         if not entry_id:
             entry_id = self._download_json(
-                self._API_TEMPL % (host, host.split('.')[0]), display_id, query={
-                    'variables': json.dumps({
-                        'contextId': 'NewsArticle:' + article_id,
-                    }),
-                })['data']['context']['mainAsset']['video']['kaltura']['kalturaId']
+                self._API_TEMPL % (host, host.split('.')[0]),
+                display_id,
+                query={
+                    'variables': json.dumps(
+                        {'contextId': f'NewsArticle:{article_id}'}
+                    )
+                },
+            )['data']['context']['mainAsset']['video']['kaltura']['kalturaId']
+
 
         return self.url_result(
             'kaltura:%s:%s' % (self._PARTNER_ID, entry_id),

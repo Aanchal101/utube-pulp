@@ -73,8 +73,7 @@ class ABCOTVSIE(InfoExtractor):
         if m3u8_url:
             formats = self._extract_m3u8_formats(
                 video['m3u8'].split('?')[0], display_id, 'mp4', m3u8_id='hls', fatal=False)
-        mp4_url = video.get('mp4')
-        if mp4_url:
+        if mp4_url := video.get('mp4'):
             formats.append({
                 'abr': 128,
                 'format_id': 'https',

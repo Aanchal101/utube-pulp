@@ -53,8 +53,7 @@ class AtresPlayerIE(InfoExtractor):
         if username is None:
             return
 
-        self._request_webpage(
-            self._API_BASE + 'login', None, 'Downloading login page')
+        self._request_webpage(f'{self._API_BASE}login', None, 'Downloading login page')
 
         try:
             target_url = self._download_json(
@@ -75,7 +74,9 @@ class AtresPlayerIE(InfoExtractor):
 
         try:
             episode = self._download_json(
-                self._API_BASE + 'client/v1/player/episode/' + video_id, video_id)
+                f'{self._API_BASE}client/v1/player/episode/{video_id}', video_id
+            )
+
         except ExtractorError as e:
             self._handle_error(e, 403)
 

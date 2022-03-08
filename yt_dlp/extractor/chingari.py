@@ -29,12 +29,15 @@ class ChingariBaseIE(InfoExtractor):
         } for frmt, frmt_path in media_data.get('transcoded', {}).items()]
 
         if media_data.get('path'):
-            formats.append({
-                'format_id': 'original',
-                'format_note': 'Direct video.',
-                'url': base_url + '/apipublic' + media_data['path'],
-                'quality': 10,
-            })
+            formats.append(
+                {
+                    'format_id': 'original',
+                    'format_note': 'Direct video.',
+                    'url': f'{base_url}/apipublic' + media_data['path'],
+                    'quality': 10,
+                }
+            )
+
         self._sort_formats(formats)
         timestamp = str_to_int(post_data.get('created_at'))
         if timestamp:

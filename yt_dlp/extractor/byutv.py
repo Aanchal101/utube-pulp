@@ -66,8 +66,7 @@ class BYUtvIE(InfoExtractor):
                 'x-byutv-platformkey': 'xsaaw9c7y5',
             })
 
-        ep = video.get('ooyalaVOD')
-        if ep:
+        if ep := video.get('ooyalaVOD'):
             return {
                 '_type': 'url_transparent',
                 'ie_key': 'Ooyala',

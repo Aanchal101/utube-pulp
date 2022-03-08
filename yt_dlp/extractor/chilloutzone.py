@@ -70,8 +70,7 @@ class ChilloutzoneIE(InfoExtractor):
 
         # If nativePlatform is None a fallback mechanism is used (i.e. youtube embed)
         if native_platform is None:
-            youtube_url = YoutubeIE._extract_url(webpage)
-            if youtube_url:
+            if youtube_url := YoutubeIE._extract_url(webpage):
                 return self.url_result(youtube_url, ie=YoutubeIE.ie_key())
 
         # Non Fallback: Decide to use native source (e.g. youtube or vimeo) or
@@ -80,8 +79,7 @@ class ChilloutzoneIE(InfoExtractor):
             if native_platform == 'youtube':
                 return self.url_result(native_video_id, ie='Youtube')
             if native_platform == 'vimeo':
-                return self.url_result(
-                    'http://vimeo.com/' + native_video_id, ie='Vimeo')
+                return self.url_result(f'http://vimeo.com/{native_video_id}', ie='Vimeo')
 
         if not video_url:
             raise ExtractorError('No video found')

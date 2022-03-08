@@ -38,10 +38,9 @@ class CloudyIE(InfoExtractor):
 
         info = self._parse_html5_media_entries(url, webpage, video_id)[0]
 
-        webpage = self._download_webpage(
-            'https://www.cloudy.ec/v/%s' % video_id, video_id, fatal=False)
-
-        if webpage:
+        if webpage := self._download_webpage(
+            'https://www.cloudy.ec/v/%s' % video_id, video_id, fatal=False
+        ):
             info.update({
                 'title': self._search_regex(
                     r'<h\d[^>]*>([^<]+)<', webpage, 'title'),

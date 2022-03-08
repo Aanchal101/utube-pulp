@@ -334,7 +334,7 @@ class TestFormatSelection(unittest.TestCase):
                 info['acodec'] = 'none'
 
             info['format_id'] = f_id
-            info['url'] = 'url:' + f_id
+            info['url'] = f'url:{f_id}'
             return info
         formats_order = [format_info(f_id) for f_id in order]
 
@@ -932,10 +932,7 @@ class TestYoutubeDL(unittest.TestCase):
         self.assertEqual(res, ['1', '2'])
 
         def f(v):
-            if v['id'] == '1':
-                return None
-            else:
-                return 'Video id is not 1'
+            return None if v['id'] == '1' else 'Video id is not 1'
         res = get_videos(f)
         self.assertEqual(res, ['1'])
 

@@ -61,7 +61,9 @@ class ArnesIE(InfoExtractor):
         video_id = self._match_id(url)
 
         video = self._download_json(
-            self._BASE_URL + '/api/public/video/' + video_id, video_id)['data']
+            f'{self._BASE_URL}/api/public/video/{video_id}', video_id
+        )['data']
+
         title = video['title']
 
         formats = []

@@ -79,8 +79,9 @@ class ExternalFD(FragmentFD):
 
     @classmethod
     def available(cls, path=None):
-        path = check_executable(path or cls.get_basename(), [cls.AVAILABLE_OPT])
-        if path:
+        if path := check_executable(
+            path or cls.get_basename(), [cls.AVAILABLE_OPT]
+        ):
             cls.exe = path
             return path
         return False
@@ -139,10 +140,9 @@ class ExternalFD(FragmentFD):
                 self.to_screen(
                     '[%s] Got error. Retrying fragments (attempt %d of %s)...'
                     % (self.get_basename(), count, self.format_retries(fragment_retries)))
-        if count > fragment_retries:
-            if not skip_unavailable_fragments:
-                self.report_error('Giving up after %s fragment retries' % fragment_retries)
-                return -1
+        if count > fragment_retries and not skip_unavailable_fragments:
+            self.report_error('Giving up after %s fragment retries' % fragment_retries)
+            return -1
 
         decrypt_fragment = self.decrypter(info_dict)
         dest, _ = self.sanitize_open(tmpfilename, 'wb')
@@ -270,14 +270,7 @@ class Aria2cFD(ExternalFD):
         cmd += self._bool_option('--show-console-readout', 'noprogress', 'false', 'true', '=')
         cmd += self._configuration_args()
 
-        # aria2c strips out spaces from the beginning/end of filenames and paths.
-        # We work around this issue by adding a "./" to the beginning of the
-        # filename and relative path, and adding a "/" at the end of the path.
-        # See: https://github.com/yt-dlp/yt-dlp/issues/276
-        # https://github.com/ytdl-org/youtube-dl/issues/20312
-        # https://github.com/aria2/aria2/issues/1373
-        dn = os.path.dirname(tmpfilename)
-        if dn:
+        if dn := os.path.dirname(tmpfilename):
             if not os.path.isabs(dn):
                 dn = '.%s%s' % (os.path.sep, dn)
             cmd += ['--dir', dn + os.path.sep]
@@ -389,8 +382,7 @@ class FFmpegFD(ExternalFD):
                 ''.join('%s: %s\r\n' % (key, val) for key, val in headers.items())]
 
         env = None
-        proxy = self.params.get('proxy')
-        if proxy:
+        if proxy := self.params.get('proxy'):
             if not re.match(r'^[\da-zA-Z]+://', proxy):
                 proxy = 'http://%s' % proxy
 
@@ -507,11 +499,8 @@ class AVconvFD(FFmpegFD):
     pass
 
 
-_BY_NAME = dict(
-    (klass.get_basename(), klass)
-    for name, klass in globals().items()
-    if name.endswith('FD') and name not in ('ExternalFD', 'FragmentFD')
-)
+_BY_NAME = {klass.get_basename(): klass for name, klass in globals().items()
+    if name.endswith('FD') and name not in ('ExternalFD', 'FragmentFD')}
 
 
 def list_external_downloaders():

@@ -113,15 +113,17 @@ class CBCIE(InfoExtractor):
         media_id = player_info.get('mediaId')
         if not media_id:
             clip_id = player_info['clipId']
-            feed = self._download_json(
-                'http://tpfeed.cbc.ca/f/ExhSPC/vms_5akSXx4Ng_Zn?byCustomValue={:mpsReleases}{%s}' % clip_id,
-                clip_id, fatal=False)
-            if feed:
+            if feed := self._download_json(
+                'http://tpfeed.cbc.ca/f/ExhSPC/vms_5akSXx4Ng_Zn?byCustomValue={:mpsReleases}{%s}'
+                % clip_id,
+                clip_id,
+                fatal=False,
+            ):
                 media_id = try_get(feed, lambda x: x['entries'][0]['guid'], compat_str)
-            if not media_id:
-                media_id = self._download_json(
-                    'http://feed.theplatform.com/f/h9dtGB/punlNGjMlc1F?fields=id&byContent=byReleases%3DbyId%253D' + clip_id,
-                    clip_id)['entries'][0]['id'].split('/')[-1]
+        if not media_id:
+            media_id = self._download_json(
+                'http://feed.theplatform.com/f/h9dtGB/punlNGjMlc1F?fields=id&byContent=byReleases%3DbyId%253D' + clip_id,
+                clip_id)['entries'][0]['id'].split('/')[-1]
         return self.url_result('cbcplayer:%s' % media_id, 'CBCPlayer', media_id)
 
     def _real_extract(self, url):
@@ -291,7 +293,7 @@ class CBCGemIE(InfoExtractor):
         # JWT is decoded here and 'exp' field is extracted
         # It is a Unix timestamp for when the token expires
         b64_data = self._claims_token.split('.')[1]
-        data = base64.urlsafe_b64decode(b64_data + "==")
+        data = base64.urlsafe_b64decode(f'{b64_data}==')
         return json.loads(data)['exp']
 
     def claims_token_expired(self):
@@ -431,9 +433,7 @@ class CBCGemPlaylistIE(InfoExtractor):
         if season_info is None:
             raise ExtractorError(f'Couldn\'t find season {season} of {show}')
 
-        episodes = []
-        for episode in season_info['assets']:
-            episodes.append({
+        episodes = [{
                 '_type': 'url_transparent',
                 'ie_key': 'CBCGem',
                 'url': 'https://gem.cbc.ca/media/' + episode['id'],
@@ -450,8 +450,7 @@ class CBCGemPlaylistIE(InfoExtractor):
                 'episode_id': episode['id'],
                 'duration': episode.get('duration'),
                 'categories': [episode.get('category')],
-            })
-
+            } for episode in season_info['assets']]
         thumbnail = None
         tn_uri = season_info.get('image')
         # the-national was observed to use a "data:image/png;base64"

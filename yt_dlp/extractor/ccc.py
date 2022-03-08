@@ -52,7 +52,7 @@ class CCCIE(InfoExtractor):
                 format_id = language
             if folder:
                 if language:
-                    format_id += '-' + folder
+                    format_id += f'-{folder}'
                 else:
                     format_id = folder
             vcodec = 'h264' if 'h264' in folder else (
@@ -99,13 +99,15 @@ class CCCPlaylistIE(InfoExtractor):
         playlist_id = self._match_id(url).lower()
 
         conf = self._download_json(
-            'https://media.ccc.de/public/conferences/' + playlist_id,
-            playlist_id)
+            f'https://media.ccc.de/public/conferences/{playlist_id}', playlist_id
+        )
+
 
         entries = []
-        for e in conf['events']:
-            event_url = url_or_none(e.get('frontend_link'))
-            if event_url:
-                entries.append(self.url_result(event_url, ie=CCCIE.ie_key()))
+        entries.extend(
+            self.url_result(event_url, ie=CCCIE.ie_key())
+            for e in conf['events']
+            if (event_url := url_or_none(e.get('frontend_link')))
+        )
 
         return self.playlist_result(entries, playlist_id, conf.get('title'))

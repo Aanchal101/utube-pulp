@@ -81,15 +81,24 @@ class CanalplusIE(InfoExtractor):
                 formats.extend(self._extract_m3u8_formats(
                     format_url, video_id, 'mp4', 'm3u8_native', m3u8_id=format_id, fatal=False))
             elif format_id == 'HDS':
-                formats.extend(self._extract_f4m_formats(
-                    format_url + '?hdcore=2.11.3', video_id, f4m_id=format_id, fatal=False))
+                formats.extend(
+                    self._extract_f4m_formats(
+                        f'{format_url}?hdcore=2.11.3',
+                        video_id,
+                        f4m_id=format_id,
+                        fatal=False,
+                    )
+                )
+
             else:
-                formats.append({
-                    # the secret extracted from ya function in http://player.canalplus.fr/common/js/canalPlayer.js
-                    'url': format_url + '?secret=pqzerjlsmdkjfoiuerhsdlfknaes',
-                    'format_id': format_id,
-                    'quality': preference(format_id),
-                })
+                formats.append(
+                    {
+                        'url': f'{format_url}?secret=pqzerjlsmdkjfoiuerhsdlfknaes',
+                        'format_id': format_id,
+                        'quality': preference(format_id),
+                    }
+                )
+
         self._sort_formats(formats)
 
         thumbnails = [{

@@ -224,12 +224,11 @@ def _extract_chrome_cookies(browser_name, profile, keyring, logger):
     elif _is_path(profile):
         search_root = profile
         config['browser_dir'] = os.path.dirname(profile) if config['supports_profiles'] else profile
+    elif config['supports_profiles']:
+        search_root = os.path.join(config['browser_dir'], profile)
     else:
-        if config['supports_profiles']:
-            search_root = os.path.join(config['browser_dir'], profile)
-        else:
-            logger.error('{} does not support profiles'.format(browser_name))
-            search_root = config['browser_dir']
+        logger.error('{} does not support profiles'.format(browser_name))
+        search_root = config['browser_dir']
 
     cookie_database_path = _find_most_recently_used_file(search_root, 'Cookies')
     if cookie_database_path is None:
@@ -649,19 +648,22 @@ def _get_linux_desktop_environment(env):
     if xdg_current_desktop is not None:
         xdg_current_desktop = xdg_current_desktop.split(':')[0].strip()
 
-        if xdg_current_desktop == 'Unity':
-            if desktop_session is not None and 'gnome-fallback' in desktop_session:
-                return _LinuxDesktopEnvironment.GNOME
-            else:
-                return _LinuxDesktopEnvironment.UNITY
-        elif xdg_current_desktop == 'GNOME':
+        if xdg_current_desktop == 'GNOME':
             return _LinuxDesktopEnvironment.GNOME
-        elif xdg_current_desktop == 'X-Cinnamon':
-            return _LinuxDesktopEnvironment.CINNAMON
         elif xdg_current_desktop == 'KDE':
             return _LinuxDesktopEnvironment.KDE
         elif xdg_current_desktop == 'Pantheon':
             return _LinuxDesktopEnvironment.PANTHEON
+        elif xdg_current_desktop == 'Unity':
+            return (
+                _LinuxDesktopEnvironment.GNOME
+                if desktop_session is not None
+                and 'gnome-fallback' in desktop_session
+                else _LinuxDesktopEnvironment.UNITY
+            )
+
+        elif xdg_current_desktop == 'X-Cinnamon':
+            return _LinuxDesktopEnvironment.CINNAMON
         elif xdg_current_desktop == 'XFCE':
             return _LinuxDesktopEnvironment.XFCE
     elif desktop_session is not None:
@@ -671,11 +673,10 @@ def _get_linux_desktop_environment(env):
             return _LinuxDesktopEnvironment.KDE
         elif 'xfce' in desktop_session:
             return _LinuxDesktopEnvironment.XFCE
-    else:
-        if 'GNOME_DESKTOP_SESSION_ID' in env:
-            return _LinuxDesktopEnvironment.GNOME
-        elif 'KDE_FULL_SESSION' in env:
-            return _LinuxDesktopEnvironment.KDE
+    elif 'GNOME_DESKTOP_SESSION_ID' in env:
+        return _LinuxDesktopEnvironment.GNOME
+    elif 'KDE_FULL_SESSION' in env:
+        return _LinuxDesktopEnvironment.KDE
     return _LinuxDesktopEnvironment.OTHER
 
 
@@ -687,12 +688,11 @@ def _choose_linux_keyring(logger):
     desktop_environment = _get_linux_desktop_environment(os.environ)
     logger.debug('detected desktop environment: {}'.format(desktop_environment.name))
     if desktop_environment == _LinuxDesktopEnvironment.KDE:
-        linux_keyring = _LinuxKeyring.KWALLET
+        return _LinuxKeyring.KWALLET
     elif desktop_environment == _LinuxDesktopEnvironment.OTHER:
-        linux_keyring = _LinuxKeyring.BASICTEXT
+        return _LinuxKeyring.BASICTEXT
     else:
-        linux_keyring = _LinuxKeyring.GNOMEKEYRING
-    return linux_keyring
+        return _LinuxKeyring.GNOMEKEYRING
 
 
 def _get_kwallet_network_wallet(logger):
@@ -784,9 +784,8 @@ def _get_gnome_keyring_password(browser_keyring_name, logger):
         for item in col.get_all_items():
             if item.get_label() == '{} Safe Storage'.format(browser_keyring_name):
                 return item.get_secret()
-        else:
-            logger.error('failed to read from keyring')
-            return b''
+        logger.error('failed to read from keyring')
+        return b''
 
 
 def _get_linux_keyring_password(browser_keyring_name, keyring, logger):
@@ -928,9 +927,7 @@ def _find_most_recently_used_file(root, filename):
     # if there are multiple browser profiles, take the most recently used one
     paths = []
     for root, dirs, files in os.walk(root):
-        for file in files:
-            if file == filename:
-                paths.append(os.path.join(root, file))
+        paths.extend(os.path.join(root, file) for file in files if file == filename)
     return None if not paths else max(paths, key=lambda path: os.lstat(path).st_mtime)
 
 

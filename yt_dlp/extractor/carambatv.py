@@ -84,10 +84,12 @@ class CarambaTVPageIE(InfoExtractor):
 
         videomore_url = VideomoreIE._extract_url(webpage)
         if not videomore_url:
-            videomore_id = self._search_regex(
-                r'getVMCode\s*\(\s*["\']?(\d+)', webpage, 'videomore id',
-                default=None)
-            if videomore_id:
+            if videomore_id := self._search_regex(
+                r'getVMCode\s*\(\s*["\']?(\d+)',
+                webpage,
+                'videomore id',
+                default=None,
+            ):
                 videomore_url = 'videomore:%s' % videomore_id
         if videomore_url:
             title = self._og_search_title(webpage)

@@ -82,8 +82,7 @@ class CBSInteractiveIE(CBSIE):
         video_id = vdata['mpxRefId']
 
         title = vdata['title']
-        author = vdata.get('author')
-        if author:
+        if author := vdata.get('author'):
             uploader = '%s %s' % (author['firstName'], author['lastName'])
             uploader_id = author.get('id')
         else:

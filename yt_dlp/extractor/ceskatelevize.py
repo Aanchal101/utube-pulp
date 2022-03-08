@@ -113,11 +113,12 @@ class CeskaTelevizeIE(InfoExtractor):
         type_ = None
         episode_id = None
 
-        playlist = self._parse_json(
+        if playlist := self._parse_json(
             self._search_regex(
-                r'getPlaylistUrl\(\[({.+?})\]', webpage, 'playlist',
-                default='{}'), playlist_id)
-        if playlist:
+                r'getPlaylistUrl\(\[({.+?})\]', webpage, 'playlist', default='{}'
+            ),
+            playlist_id,
+        ):
             type_ = playlist.get('type')
             episode_id = playlist.get('id')
 
@@ -207,8 +208,7 @@ class CeskaTelevizeIE(InfoExtractor):
 
                 subtitles = {}
                 if item.get('type') == 'VOD':
-                    subs = item.get('subtitles')
-                    if subs:
+                    if subs := item.get('subtitles'):
                         subtitles = self.extract_subtitles(episode_id, subs)
 
                 if playlist_len == 1:
@@ -257,8 +257,7 @@ class CeskaTelevizeIE(InfoExtractor):
 
         def _fix_subtitle(subtitle):
             for line in subtitle.splitlines():
-                m = re.match(r'^\s*([0-9]+);\s*([0-9]+)\s+([0-9]+)\s*$', line)
-                if m:
+                if m := re.match(r'^\s*([0-9]+);\s*([0-9]+)\s+([0-9]+)\s*$', line):
                     yield m.group(1)
                     start, stop = (_msectotimecode(int(t)) for t in m.groups()[1:])
                     yield '{0} --> {1}'.format(start, stop)
